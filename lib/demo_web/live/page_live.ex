@@ -3,37 +3,109 @@ defmodule DemoWeb.PageLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, query: "", results: %{})}
+    if connected?(socket) do
+      Process.send_after(self(), :config, :timer.seconds(:rand.uniform(5)))
+    end
+
+    {:ok, socket, temporary_assigns: [config: nil]}
   end
 
   @impl true
-  def handle_event("suggest", %{"q" => query}, socket) do
-    {:noreply, assign(socket, results: search(query), query: query)}
-  end
+  def handle_info(:config, socket) do
+    config = %{
+      "data" => [
+        %{
+          "country" => "Lithuania",
+          "litres" => 501.9,
+          "units" => 250
+        },
+        %{
+          "country" => "Czech Republic",
+          "litres" => 301.9,
+          "units" => 222
+        },
+        %{
+          "country" => "Ireland",
+          "litres" => 201.1,
+          "units" => 170
+        },
+        %{
+          "country" => "Germany",
+          "litres" => 165.8,
+          "units" => 122
+        },
+        %{
+          "country" => "Australia",
+          "litres" => 139.9,
+          "units" => 99
+        },
+        %{
+          "country" => "Austria",
+          "litres" => 128.3,
+          "units" => 85
+        },
+        %{
+          "country" => "UK",
+          "litres" => 99,
+          "units" => 93
+        },
+        %{
+          "country" => "Belgium",
+          "litres" => 60,
+          "units" => 50
+        },
+        %{
+          "country" => "The Netherlands",
+          "litres" => 50,
+          "units" => 42
+        }
+      ],
+      "xAxes" => [
+        %{
+          "type" => "CategoryAxis",
+          "dataFields" => %{
+            "category" => "country",
+            "title" => %{
+              "text" => "Countries"
+            }
+          }
+        }
+      ],
+      "yAxes" => [
+        %{
+          "type" => "ValueAxis",
+          "title" => %{
+            "text" => "Litres sold (M)"
+          }
+        }
+      ],
+      "series" => [
+        %{
+          "type" => "ColumnSeries",
+          "dataFields" => %{
+            "valueY" => "litres",
+            "categoryX" => "country"
+          },
+          "name" => "Sales",
+          "columns" => %{
+            "tooltipText" => "Series: {name}\nCategory: {categoryX}\nValue: {valueY}",
+            "stroke" => "#ff0000",
+            "fill" => "#00ff00"
+          }
+        },
+        %{
+          "type" => "LineSeries",
+          "stroke" => "#CDA2AB",
+          "strokeWidth" => 3,
+          "dataFields" => %{
+            "valueY" => "units",
+            "categoryX" => "country"
+          },
+          "name" => "Units"
+        }
+      ]
+    }
 
-  @impl true
-  def handle_event("search", %{"q" => query}, socket) do
-    case search(query) do
-      %{^query => vsn} ->
-        {:noreply, redirect(socket, external: "https://hexdocs.pm/#{query}/#{vsn}")}
-
-      _ ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "No dependencies found matching \"#{query}\"")
-         |> assign(results: %{}, query: query)}
-    end
-  end
-
-  defp search(query) do
-    if not DemoWeb.Endpoint.config(:code_reloader) do
-      raise "action disabled when not in development"
-    end
-
-    for {app, desc, vsn} <- Application.started_applications(),
-        app = to_string(app),
-        String.starts_with?(app, query) and not List.starts_with?(desc, ~c"ERTS"),
-        into: %{},
-        do: {app, vsn}
+    {:noreply, assign(socket, config: Jason.encode_to_iodata!(config))}
   end
 end
